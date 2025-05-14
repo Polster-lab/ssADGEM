@@ -1,13 +1,12 @@
 if (!require("BiocManager", quietly = TRUE))
   {install.packages("BiocManager")}
 #BiocManager::install("sva")
-if (!require("sva", quietly = TRUE))
-{BiocManager::install("sva")}
+if (!require("sva", quietly = TRUE)){BiocManager::install("sva")}
 if (!requireNamespace("ggplot2", quietly = TRUE)){install.packages("ggfortify")}
 if (!requireNamespace("ggplot2", quietly = TRUE)){install.packages("ggplot2")}
 if (!requireNamespace("viridis", quietly = TRUE)){install.packages("viridis")}
 if (!requireNamespace("wacolors", quietly = TRUE)){install.packages("wacolors")}
-
+if (!requireNamespace("ggfortify", quietly = TRUE)){install.packages("ggfortify")}
 library("wacolors")
 library("tidyverse") # Tibble dataframes
 library("magrittr") # Piping
@@ -37,12 +36,11 @@ rownames(counts_matrix) <- t(gene_ids)
 # analyze distributions per batch
 #let's see the batches
 batches <- as.factor(annotation$Batch)
-#
 #Samples belonging to multiple batches were found, let's delete them from the study
 idx2rmv       <- which(annotation$Batch == "0, 6, 7")
 annotation    <- annotation[-idx2rmv,]
 counts_matrix <- counts_matrix[,-idx2rmv]
-#delete thos gene entries with 0 counts across all samples
+#delete those gene entries with 0 counts across all samples
 idx2rmv       <- which(rowSums(counts_matrix)==0)
 counts_matrix <- counts_matrix[-idx2rmv,]
 df_counts     <- as.data.frame(t(counts_matrix))
@@ -92,7 +90,7 @@ t_c_matrix$batch <- batch_col
 #cpm_matrix_f <- counts_matrix_f/(colSums(counts_matrix_f)/1E6)
 sample_ID <- AD_col
 sample_bt <- batch_col
-toRemove <- which(AD_col=='other')
+toRemove   <- which(AD_col=='other')
 annotation <-annotation[-toRemove,]
 sample_ID <- sample_ID[-toRemove]
 sample_bt <- sample_bt[-toRemove]
@@ -120,6 +118,8 @@ pca_object       <- prcomp(t_c_matrix, center = TRUE, scale. = TRUE)
 t_c_matrix       <- as.data.frame(t_c_matrix)
 t_c_matrix$batch <- as.factor(sample_bt)
 autoplot(pca_object, data= t_c_matrix, colour = 'batch')
+
+
 #remove two oulier samples (PC2) from batch 5. (145_120419)
 x    <- pca_object$x
 pos  <- which(x[,1]==max(x[,1]))
@@ -135,6 +135,7 @@ pca_object       <- prcomp(as.matrix(t_c_matrix), center = TRUE, scale. = TRUE)
 t_c_matrix       <- as.data.frame(t_c_matrix)
 t_c_matrix$batch <- as.factor(sample_bt)
 autoplot(pca_object, data= t_c_matrix, colour = 'batch')
+
 #remove last outlier. 122_120418
 x <- pca_object$x
 pos2 <- which(x[,2]==min(x[,2]))
@@ -160,14 +161,14 @@ autoplot(pca_object, data= t_c_matrix, colour = 'batch')
 counts_matrix.adj <- adjusted
 #cpm_matrix.adj <-log2(counts_matrix.adj/(colSums(counts_matrix.adj)/1E6))
 
-df_counts     <- as.data.frame(t(counts.norm))
-df_counts$batch <- sample_bt
-df_counts$AD <- sample_ID
-counts2plot<- data.frame(counts = c(t(df_counts[,1:(ncol(df_counts)-2)])),batch = rep(df_counts[,ncol(df_counts)-1],nrow(counts.norm)),AD = rep(df_counts[,ncol(df_counts)],nrow(counts.norm)))#, AD = c(df_counts[,ncol(df_counts)]))
-counts2plot$batch <- as.factor(counts2plot$batch)
+df_counts          <- as.data.frame(t(counts.norm))
+df_counts$batch    <- sample_bt
+df_counts$AD       <- sample_ID
+counts2plot        <- data.frame(counts = c(t(df_counts[,1:(ncol(df_counts)-2)])),batch = rep(df_counts[,ncol(df_counts)-1],nrow(counts.norm)),AD = rep(df_counts[,ncol(df_counts)],nrow(counts.norm)))#, AD = c(df_counts[,ncol(df_counts)]))
+counts2plot$batch  <- as.factor(counts2plot$batch)
 counts2plot$counts <- as.numeric(counts2plot$counts)
-counts2plot$AD <- as.factor(counts2plot$AD)
-counts2plot$lcpm <- log10(counts2plot$counts)
+counts2plot$AD     <- as.factor(counts2plot$AD)
+counts2plot$lcpm   <- log10(counts2plot$counts)
 
 p <- ggplot(counts2plot, aes(x=batch, y=lcpm)) +
   geom_boxplot() + theme_minimal() + scale_fill_wa_d(wacolors$volcano)#+ ylim(c(0,100))   #+
@@ -179,9 +180,9 @@ ggsave(file_name, p, width = 12, height = 10, units = "cm",dpi = 400)
 #for diff expr analysis⁄Keep those genes with at least 1 cpm in 50% of the NCI samples
 AD_idxs <- which(annotation$AD=='AD')
 NCIidxs <- which(annotation$AD=='No_AD')
-nci <- counts.norm[,NCIidxs]
-exprn <- rowSums((nci>=1))
-toKeep <- which(exprn>=0.5*length(NCIidxs))
+nci     <- counts.norm[,NCIidxs]
+exprn   <- rowSums((nci>=1))
+toKeep  <- which(exprn>=0.5*length(NCIidxs))
 #Identify AD and non-AD smples
 patient <- colnames(counts_matrix.processed)
 annotation$patient <- patient

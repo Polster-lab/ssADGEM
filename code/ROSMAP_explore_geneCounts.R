@@ -1,6 +1,11 @@
 if (!requireNamespace("ggplot2", quietly = TRUE)){install.packages("ggplot2")}
 if (!requireNamespace("viridis", quietly = TRUE)){install.packages("viridis")}
 if (!requireNamespace("wacolors", quietly = TRUE)){install.packages("wacolors")}
+if (!requireNamespace("plyr", quietly = TRUE)){install.packages("plyr")}
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("sva")
 
 library("wacolors")
 library("tidyverse") # Tibble dataframes
@@ -9,7 +14,7 @@ library("DESeq2")
 library("ggplot2")
 library("viridis")
 library("plyr")
-
+library("sva")
 #set wd and create the necessary ones for results
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 setwd('..')
@@ -48,7 +53,7 @@ counts_matrix <- counts_matrix[-neverExpressed,]
 exp_in_samples_AD <- exp_in_samples_AD[-neverExpressed]
 exp_in_samples_NoAD <- exp_in_samples_NoAD[-neverExpressed]
 write_delim(noExpGenes, file = 'data/genes_never_expressed.txt',delim = '\t', na='NA')
-#Keep genes expressed in at least 25% of the samples
+# genes expressed in at least 25% of the samples
 low_occurrence_genes_noAD <- which(exp_in_samples_NoAD<0.25*ncol(counts_matrix))
 low_occurrence_genes_AD <- which(exp_in_samples_AD<0.25*ncol(counts_matrix))
 #check for genes that are lowly ocurring in both subsets
@@ -61,7 +66,7 @@ high_occur_NoAD <- which(exp_in_samples_NoAD>=0.75*ncol(counts_matrix))
 opposite_occur_NoAD <- intersect(high_occur_NoAD,low_occurrence_genes_AD)
 #Same, there seems to be no opposite occurence of gene expression among AD vs Non-AD samples
 #Now let's be more granular and analyse this sample by sample (AD)
-AD_idxs <- which(annotation$AD)
+AD_idxs <- which(annotation$AD == "AD")
 AD_sample_exclusive_genes <- data.frame(id = numeric(length(AD_idxs)), exc_genes = numeric(length(AD_idxs)), n_exc_genes = numeric(length(AD_idxs)))
 AD_sample_exclusive_genes$exc_genes   <- 0
 AD_sample_exclusive_genes$n_exc_genes <- 0

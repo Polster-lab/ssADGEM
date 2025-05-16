@@ -1,7 +1,10 @@
 load('Human-GEM/model/Human-GEM.mat')
 annotation  = readtable('../data/ROSMAP_annotation_processed.txt','Delimiter','\t');
 ADpos = find(strcmpi(annotation.AD,'AD'));
-b = 282;%length(ADpos);
+annotation(138,:) = [];
+annotation(140,:) = [];
+
+b = height(annotation);
 baseModel = ihuman;
 
 compRxnMat= zeros(length(baseModel.rxns), b);
@@ -11,7 +14,8 @@ for i=1:b
     %data = readtable(['../results/DE_analysis/DE_genes_RM_' num2str(i) '.txt'],'Delimiter','\t');
     patient = annotation.patient{i};
     disp([num2str(i) ': ' patient])
-    load(['../models_pseudo/' patient '.mat'],'sampleModel')
+    try
+    load(['../models//' patient '.mat'],'sampleModel')
     %get model elements presence
     presence = ismember(ihuman.mets,sampleModel.mets);
     compMetMat(presence,i) = 1;
@@ -19,31 +23,40 @@ for i=1:b
     compRxnMat(presence,i) = 1;
     presence = ismember(ihuman.genes,sampleModel.genes);
     compgnsMat(presence,i) = 1;
+    catch
+        disp(['Model for patient: ' patient ' not found'])
+    end
 end
-
 rxnPresence = sum(compRxnMat,2);
 metPresence = sum(compMetMat,2);
 genPresence = sum(compgnsMat,2);
+rxns = find(rxnPresence>0);
+mets = find(metPresence>0);
+genes = find(genPresence>0);
 %
+compRxnMat = compRxnMat(rxnPresence>0,:);
+compMetMat = compMetMat(metPresence>0,:);
+compgnsMat = compgnsMat(genPresence>0,:);
+
 figure
 set(gca,'FontSize',18)
-histogram(rxnPresence(rxnPresence>0),'FaceColor','black')
+histogram(rxnPresence(rxnPresence>0 & rxnPresence<162),'FaceColor','black')
 xlabel('Presence across AD samples')
 ylabel('# number of rxns')
 figure
 set(gca,'FontSize',18)
-histogram(metPresence(metPresence>0),'FaceColor','black')
+histogram(metPresence(metPresence>0 & metPresence<162),'FaceColor','black')
 xlabel('Presence across AD samples')
 ylabel('# number of mets')
 figure
 set(gca,'FontSize',18)
-histogram(genPresence(genPresence>0),'FaceColor','black')
+histogram(genPresence(genPresence>0 & genPresence<162),'FaceColor','black')
 xlabel('Presence across AD samples')
 ylabel('# number of genes')
 %
 ADpos = find(strcmpi(annotation.AD,'AD'));
-ADpos = extractSampleSubset('AD',3);
-ADpos = ADpos(ADpos>0);
+%ADpos = extractSampleSubset('AD',3);
+%ADpos = ADpos(ADpos>0);
 noADpos = find(~strcmpi(annotation.AD,'AD'));
 %Global elements (pan-GEM)
 RM_mets = ihuman.mets(metPresence>0);
@@ -62,10 +75,10 @@ fc_rxns = log2((AD_rxnPres/length(ADpos))./(NoAD_rxnPres/length(noADpos)));
 fc_gens = log2((AD_genPres/length(ADpos))./(NoAD_genPres/length(noADpos)));
 
 fChange = fc_rxns;
-rxnComp = ihuman.rxns;
-rxnNames = ihuman.rxnNames;
-formulas = constructEquations(ihuman);
-subsystems = ihuman.subSystems;
+rxnComp = ihuman.rxns(rxns);
+rxnNames = ihuman.rxnNames(rxns);
+formulas = constructEquations(ihuman,rxns);
+subsystems = ihuman.subSystems(rxns);
 NoADpres  = NoAD_rxnPres/length(noADpos);
 ADpres  = AD_rxnPres/length(ADpos);
 rxnComp = table(rxnComp,rxnNames,formulas,subsystems,fChange,NoADpres,ADpres);
@@ -76,9 +89,9 @@ rxnComp = rxnComp((rxnComp.NoADpres>=0.5),:);
 rxnComp = rxnComp(abs(rxnComp.fChange)>0.1,:);
 
 fChange = fc_mets;
-metComp = ihuman.mets;
-metNames = ihuman.metNames;
-components = ihuman.metComps;
+metComp = ihuman.mets(mets);
+metNames = ihuman.metNames(mets);
+components = ihuman.metComps(mets);
 NoADpres  = NoAD_metPres/length(noADpos);
 ADpres  = AD_metPres/length(ADpos);
 metComp = table(metComp,metNames,components,fChange,NoADpres,ADpres);
@@ -89,16 +102,17 @@ metComp = metComp((metComp.NoADpres>=0.5),:);
 metComp = metComp(abs(metComp.fChange)>0.1,:);
 
 fChange = fc_gens;
-genes = ihuman.genes;
-shortNAmes = ihuman.geneShortNames;
+gens = ihuman.genes(genes);
+shortNAmes = ihuman.geneShortNames(genes);
 NoADpres  = NoAD_genPres/length(noADpos);
 ADpres  = AD_genPres/length(ADpos);
-genComp = table(genes,shortNAmes,fChange,NoADpres,ADpres);
+genComp = table(gens,shortNAmes,fChange,NoADpres,ADpres);
 genComp = genComp(~isnan(fc_gens),:);
 genComp = genComp(genComp.fChange~=0,:);
 genComp = sortrows(genComp,'fChange','descend');
 genComp = genComp((genComp.NoADpres>=0.5),:);
 genComp = genComp(abs(genComp.fChange)>0.1,:);
+
 %Analyse subsystems
 RM_sbsm = ihuman.subSystems(rxnPresence>0);
 for i=1:length(RM_sbsm)
@@ -106,7 +120,7 @@ for i=1:length(RM_sbsm)
 end
 unq_RM_sbsm = unique(RM_sbsm);
 sbsm_matrix = zeros(numel(unq_RM_sbsm),height(annotation));
-tempMat = compRxnMat(find(rxnPresence>0),:);
+tempMat = compRxnMat;%(find(rxnPresence>0),:);
 for i=1:length(unq_RM_sbsm)
     idxs = find(contains(RM_sbsm,unq_RM_sbsm(i)));
     totalRxns = numel(idxs);
